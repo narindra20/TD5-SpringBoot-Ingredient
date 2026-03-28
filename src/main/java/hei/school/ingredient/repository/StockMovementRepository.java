@@ -16,15 +16,27 @@ public class StockMovementRepository {
     }
 
     public double getStock(int ingredientId, Instant at) {
+
+        String sql = """
+        SELECT COALESCE(SUM(
+            CASE 
+                WHEN type = 'IN' THEN quantity
+                WHEN type = 'OUT' THEN -quantity
+                ELSE 0
+            END
+        ), 0)
+        FROM stock_movement
+        WHERE id_ingredient = ?
+        AND creation_datetime <= ?
+    """;
+
         Double result = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(CASE WHEN type = 'IN' THEN quantity ELSE -quantity END), 0) " +
-                        "FROM stock_movement " +
-                        "WHERE id_ingredient = ? AND creation_datetime <= ?",
+                sql,
                 Double.class,
                 ingredientId,
-                Timestamp.from(at)
+                java.sql.Timestamp.from(at)
         );
 
-        return result != null ? result : 0.0;
+        return result != null ? result : 0;
     }
 }
