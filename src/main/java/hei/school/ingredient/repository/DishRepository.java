@@ -19,7 +19,6 @@ public class DishRepository {
         this.dataSource = dataSource;
     }
 
-    // GET /dishes
     public List<Dish> findAll() {
         String sql = "SELECT id, name, selling_price FROM dish";
         List<Dish> dishes = new ArrayList<>();
@@ -29,11 +28,11 @@ public class DishRepository {
              ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                Dish dish = new Dish();
-                dish.setId(rs.getInt("id"));
-                dish.setName(rs.getString("name"));
-                dish.setSellingPrice(rs.getDouble("selling_price"));
-                dishes.add(dish);
+                Dish d = new Dish();
+                d.setId(rs.getInt("id"));
+                d.setName(rs.getString("name"));
+                d.setSellingPrice(rs.getDouble("selling_price"));
+                dishes.add(d);
             }
 
         } catch (SQLException e) {
@@ -43,7 +42,6 @@ public class DishRepository {
         return dishes;
     }
 
-    // findById
     public Optional<Dish> findById(int id) {
         String sql = "SELECT id, name, selling_price FROM dish WHERE id = ?";
 
@@ -54,11 +52,11 @@ public class DishRepository {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    Dish dish = new Dish();
-                    dish.setId(rs.getInt("id"));
-                    dish.setName(rs.getString("name"));
-                    dish.setSellingPrice(rs.getDouble("selling_price"));
-                    return Optional.of(dish);
+                    Dish d = new Dish();
+                    d.setId(rs.getInt("id"));
+                    d.setName(rs.getString("name"));
+                    d.setSellingPrice(rs.getDouble("selling_price"));
+                    return Optional.of(d);
                 }
             }
 
@@ -69,7 +67,26 @@ public class DishRepository {
         return Optional.empty();
     }
 
-    // Supprimer les ingrédients d’un plat
+    public void save(Dish dish) {
+        String sql = "INSERT INTO dish (name, selling_price) VALUES (?, ?)";
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            stmt.setString(1, dish.getName());
+            stmt.setDouble(2, dish.getSellingPrice());
+            stmt.executeUpdate();
+
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()) {
+                dish.setId(rs.getInt(1));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public void deleteIngredientsByDishId(int dishId) {
         String sql = "DELETE FROM dish_ingredient WHERE id_dish = ?";
 
@@ -84,7 +101,6 @@ public class DishRepository {
         }
     }
 
-    // Ajouter un ingrédient à un plat
     public void addIngredientToDish(int dishId, int ingredientId) {
         String sql = "INSERT INTO dish_ingredient (id_dish, id_ingredient) VALUES (?, ?)";
 
@@ -99,15 +115,19 @@ public class DishRepository {
             throw new RuntimeException(e);
         }
     }
-    
+
     public boolean existsByName(String name) {
         String sql = "SELECT 1 FROM dish WHERE name = ?";
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
+
             stmt.setString(1, name);
+
             try (ResultSet rs = stmt.executeQuery()) {
                 return rs.next();
             }
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
