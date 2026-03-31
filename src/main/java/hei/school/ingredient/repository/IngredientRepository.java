@@ -4,68 +4,101 @@ import hei.school.ingredient.entity.CategoryEnum;
 import hei.school.ingredient.entity.Ingredient;
 import hei.school.ingredient.entity.MovementTypeEnum;
 import hei.school.ingredient.entity.StockMovement;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import javax.sql.DataSource;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class IngredientRepository {
 
-    private final JdbcTemplate jdbc;
+    private final DataSource dataSource;
 
-    public IngredientRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    public IngredientRepository(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 
     // a) GET /ingredients
     public List<Ingredient> findAll() {
-        return jdbc.query(
-                "SELECT id, name, price, category FROM ingredient",
-                (rs, rowNum) -> {
-                    Ingredient i = new Ingredient();
-                    i.setId(rs.getInt("id"));
-                    i.setName(rs.getString("name"));
-                    i.setPrice(rs.getDouble("price"));
-                    i.setCategory(CategoryEnum.valueOf(rs.getString("category")));
-                    return i;
-                }
-        );
+        String sql = "SELECT id, name, price, category FROM ingredient";
+        List<Ingredient> ingredients = new ArrayList<>();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                Ingredient i = new Ingredient();
+                i.setId(rs.getInt("id"));
+                i.setName(rs.getString("name"));
+                i.setPrice(rs.getDouble("price"));
+                i.setCategory(CategoryEnum.valueOf(rs.getString("category")));
+                ingredients.add(i);
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ingredients;
     }
 
     // b) findById
     public Optional<Ingredient> findById(int id) {
         String sql = "SELECT id, name, price, category FROM ingredient WHERE id = ?";
 
-        List<Ingredient> result = jdbc.query(sql, (rs, rowNum) -> {
-            Ingredient i = new Ingredient();
-            i.setId(rs.getInt("id"));
-            i.setName(rs.getString("name"));
-            i.setPrice(rs.getDouble("price"));
-            i.setCategory(CategoryEnum.valueOf(rs.getString("category")));
-            return i;
-        }, id);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-        return result.isEmpty()
-                ? Optional.empty()
-                : Optional.of(result.get(0));
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Ingredient i = new Ingredient();
+                    i.setId(rs.getInt("id"));
+                    i.setName(rs.getString("name"));
+                    i.setPrice(rs.getDouble("price"));
+                    i.setCategory(CategoryEnum.valueOf(rs.getString("category")));
+                    return Optional.of(i);
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return Optional.empty();
     }
 
     // c) Stock movements
     public List<StockMovement> findByIngredientId(int id) {
-        return jdbc.query(
-                "SELECT id_ingredient, quantity, type, creation_datetime FROM stock_movement WHERE id_ingredient = ?",
-                (rs, rowNum) -> {
+        String sql = "SELECT id_ingredient, quantity, type, creation_datetime FROM stock_movement WHERE id_ingredient = ?";
+        List<StockMovement> movements = new ArrayList<>();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
                     StockMovement m = new StockMovement();
                     m.setIngredientId(rs.getInt("id_ingredient"));
                     m.setQuantity(rs.getDouble("quantity"));
                     m.setType(MovementTypeEnum.valueOf(rs.getString("type")));
                     m.setDateTime(rs.getTimestamp("creation_datetime").toInstant());
-                    return m;
-                },
-                id
-        );
+                    movements.add(m);
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return movements;
     }
 
     // d) GET ingrédients d’un plat
@@ -77,13 +110,28 @@ public class IngredientRepository {
             WHERE di.id_dish = ?
         """;
 
-        return jdbc.query(sql, (rs, rowNum) -> {
-            Ingredient ingredient = new Ingredient();
-            ingredient.setId(rs.getInt("id"));
-            ingredient.setName(rs.getString("name"));
-            ingredient.setCategory(CategoryEnum.valueOf(rs.getString("category")));
-            ingredient.setPrice(rs.getDouble("price"));
-            return ingredient;
-        }, dishId);
+        List<Ingredient> ingredients = new ArrayList<>();
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, dishId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Ingredient i = new Ingredient();
+                    i.setId(rs.getInt("id"));
+                    i.setName(rs.getString("name"));
+                    i.setCategory(CategoryEnum.valueOf(rs.getString("category")));
+                    i.setPrice(rs.getDouble("price"));
+                    ingredients.add(i);
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return ingredients;
     }
 }

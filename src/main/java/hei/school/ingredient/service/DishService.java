@@ -1,56 +1,67 @@
 package hei.school.ingredient.service;
 
+import hei.school.ingredient.dto.DishDTO;
 import hei.school.ingredient.entity.Dish;
 import hei.school.ingredient.entity.Ingredient;
 import hei.school.ingredient.exception.DishNotFoundException;
-import hei.school.ingredient.repository.DishRepository;
-import hei.school.ingredient.repository.IngredientRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class DishService {
 
-    private final DishRepository dishRepository;
-    private final IngredientRepository ingredientRepository;
+    private final List<Dish> dishes = new ArrayList<>();
+    private int nextId = 1;
 
-    public DishService(DishRepository dishRepository, IngredientRepository ingredientRepository) {
-        this.dishRepository = dishRepository;
-        this.ingredientRepository = ingredientRepository;
-    }
-
-    // d) GET /dishes
     public List<Dish> getAllDishes() {
-        List<Dish> dishes = dishRepository.findAll();
-
-        for (Dish dish : dishes) {
-            List<Ingredient> ingredients = ingredientRepository.findByDishId(dish.getId());
-            dish.setIngredients(ingredients);
-        }
-
-        return dishes;
+        return new ArrayList<>(dishes);
     }
 
-    // e) PUT /dishes/{id}/ingredients
+    public List<Dish> getAllDishesFiltered(Double priceUnder, Double priceOver, String name) {
+        return dishes.stream()
+                .filter(d -> priceUnder == null || d.getSellingPrice() < priceUnder)
+                .filter(d -> priceOver == null || d.getSellingPrice() > priceOver)
+                .filter(d -> name == null || d.getName().toLowerCase().contains(name.toLowerCase()))
+                .collect(Collectors.toList());
+    }
+
     public void updateDishIngredients(int dishId, List<Ingredient> ingredients) {
-
-        Dish dish = dishRepository.findById(dishId)
-                .orElseThrow(() -> new DishNotFoundException(
-                        "Dish.id=" + dishId + " is not found"
-                ));
-
-        if (ingredients == null) {
-            throw new IllegalArgumentException("Body is required");
+        if (ingredients == null || ingredients.contains(null)) {
+            throw new IllegalArgumentException("Ingredients list cannot be null or contain null values");
         }
 
-        // Supprimer
-        dishRepository.deleteIngredientsByDishId(dishId);
+        Dish dish = dishes.stream()
+                .filter(d -> d.getId() == dishId)
+                .findFirst()
+                .orElseThrow(() -> new DishNotFoundException("Dish.id=" + dishId + " not found"));
 
-        // Ajouter les nouveaux ingrédients
-        for (Ingredient ingredient : ingredients) {
-            ingredientRepository.findById(ingredient.getId())
-                    .ifPresent(i -> dishRepository.addIngredientToDish(dishId, i.getId()));
+        dish.setIngredients(new ArrayList<>(ingredients));
+    }
+
+    public List<Dish> saveAll(List<DishDTO> dishDTOs) {
+        List<Dish> createdDishes = new ArrayList<>();
+
+        for (DishDTO dto : dishDTOs) {
+            boolean exists = dishes.stream()
+                    .anyMatch(d -> d.getName().equalsIgnoreCase(dto.getName()));
+
+            if (exists) {
+                throw new IllegalArgumentException("Dish.name=" + dto.getName() + " already exists");
+            }
+
+            Dish dish = new Dish();
+            dish.setId(nextId++);
+            dish.setName(dto.getName());
+            dish.setCategory(dto.getCategory());
+            dish.setSellingPrice(dto.getSellingPrice());
+
+            dishes.add(dish);
+            createdDishes.add(dish);
         }
+
+        return createdDishes;
     }
 }
