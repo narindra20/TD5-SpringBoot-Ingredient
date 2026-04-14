@@ -1,0 +1,208 @@
+openapi: 3.0.3
+
+info:
+  title: TD OpenAPI - Ingredients & Dishes
+  description: Specification based on TD Spring Boot (Ingredients)
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Ingredients
+  - name: Dishes
+
+paths:
+
+  /ingredients:
+    get:
+      tags: [Ingredients]
+      summary: Get all ingredients
+      responses:
+        "200":
+          description: List of ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ingredient'
+
+  /ingredients/{id}:
+    get:
+      tags: [Ingredients]
+      summary: Get ingredient by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ingredient found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ingredient'
+        "404":
+          description: Ingredient not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Ingredient.id={id} is not found
+
+  /ingredients/{id}/stock:
+    get:
+      tags: [Ingredients]
+      summary: Get ingredient stock at a given time
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+
+        - name: at
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+
+        - name: unit
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [PCS, KG, L]
+
+      responses:
+        "200":
+          description: Stock value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockResponse'
+
+        "400":
+          description: Missing query parameter
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Either mandatory query parameter `at` or `unit` is not provided.
+
+        "404":
+          description: Ingredient not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Ingredient.id={id} is not found
+
+  /dishes:
+    get:
+      tags: [Dishes]
+      summary: Get all dishes
+      responses:
+        "200":
+          description: List of dishes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Dish'
+
+  /dishes/{id}/ingredients:
+    put:
+      tags: [Dishes]
+      summary: Update ingredients of a dish
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Ingredient'
+
+      responses:
+        "200":
+          description: Updated dish
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dish'
+
+        "400":
+          description: Missing body
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Request body is required
+
+        "404":
+          description: Dish not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Dish.id={id} is not found
+
+components:
+  schemas:
+
+    Ingredient:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Laitue
+        category:
+          type: string
+          enum: [VEGETABLE, ANIMAL, MARINE, DAIRY, OTHER]
+        price:
+          type: number
+          format: float
+          example: 800
+
+    StockResponse:
+      type: object
+      properties:
+        unit:
+          type: string
+          enum: [PCS, KG, L]
+        value:
+          type: number
+          example: 10
+
+    Dish:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Salad
+        price:
+          type: number
+          example: 1500
+        ingredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ingredient'
