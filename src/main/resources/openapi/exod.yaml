@@ -1,0 +1,14 @@
+/dishes:
+  get:
+    tags: [Dishes]
+    summary: Get all dishes
+    description: Returns all dishes stored in the database
+    responses:
+      200:
+        description: List of dishes
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dish'
